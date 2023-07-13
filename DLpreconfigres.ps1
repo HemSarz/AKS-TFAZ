@@ -10,7 +10,7 @@ $backend_project = "tfazlab"
 $backend_VBGroup = "hawaVB"
 
 # Azure DevOps Connection variables
-$backend_AZDOSrvConnName = "azdo-tfaz-conn"
+$backend_AZDOSrvConnName = "aks-tfaz-conn"
 
 # Set the Azure DevOps organization and project details
 $backend_org = "https://dev.azure.com/tfazlab"
