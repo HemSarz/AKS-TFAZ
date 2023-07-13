@@ -9,15 +9,12 @@ $backend_project = "tfazlab"
 # Set the variable group details
 $backend_VBGroup = "hawaVB"
 
-# Azure DevOps Connection variables
-$backend_AZDOSrvConnName = "aks-tfaz-conn"
-
 # Set the Azure DevOps organization and project details
 $backend_org = "https://dev.azure.com/tfazlab"
 $backend_project = "aks-tfaz-proj"
 $gh_repo_url = "https://github.com/HemSarz/AKS-TFAZ"
 $gh_endpoint = "tfaz-gh-endp"
-$backend_AZDOSrvConnName = "aks-tfaz-conn"
+$backend_AZDOSrvConnName = "azdo-aks-conn"
 $backend_VBGroup = "aksVB"
 $backend_PipeBuild_Name = "TFaz-AKS-Build-Pipe"
 #$backend_PipeDest_Name = "Tfaz-Destroy-Pipe"
@@ -54,7 +51,7 @@ az devops service-endpoint delete --id $backend_endPointId --yes
 Write-Host "Azure DevOps service connection deleted." -ForegroundColor Green
 
 # Delete Service Connection
-Write-Host "Retrieving Azure DevOps service connection ID..." -ForegroundColor Yellow
+Write-Host "Retrieving Github service connection ID..." -ForegroundColor Yellow
 $backend_gh_endPointId = $(az devops service-endpoint list --query "[?name=='$gh_endpoint'].id" -o tsv)
 az devops service-endpoint delete --id $backend_gh_endPointId --yes
 Write-Host "Azure DevOps service connection deleted." -ForegroundColor Green

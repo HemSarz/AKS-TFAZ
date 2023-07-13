@@ -190,14 +190,14 @@ if (-not (Test-Path $sshFolderPath)) {
     mkdir $sshFolderPath
 }
 
-# Generate the SSH key with an empty passphrase
-ssh-keygen -f $sshKeyPath -P ""
+# Generate the public key file in the correct format
+ssh-keygen -y -f $sshKeyPath > "$sshKeyPath.pub"
 
 # Read the public key file
 $publicKey = Get-Content "$sshKeyPath.pub"
 
 Write-Host "Storing SSH Key in Key Vault..." -ForegroundColor Yellow
-az keyvault secret set --vault-name $backend_kv --name $sshName --value $publicKey > $null
+az keyvault secret set --vault-name $backend_kv --name $sshName --value $publicKey
 
 # ]
 
