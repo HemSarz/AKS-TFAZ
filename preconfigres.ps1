@@ -29,6 +29,7 @@ $backend_SUBid_Name_kv_sc = "SUBidName"
 $backend_TNTid_Name_kv_sc = "TNTidName"
 $backend_STGPass_Name_kv_sc = "STGPass"
 $backend_SPNPass_Name_kv_sc = "SPNPass"
+$backend_SPNappId_Name_kv_sc = "SPNappId"
 
 # Set the Azure DevOps organization and project details
 $backend_org = "https://dev.azure.com/tfazlab"
@@ -126,7 +127,7 @@ Write-Host 'Add Permission grant..' -ForegroundColor Green
 # Ignore error "the following arguments are required: --scope" | 'scope' adds permission to Type: "Delegated"
 az ad app permission grant --id $backend_SPNappId --api $MSGraphApi #-scope $scope
 Start-Sleep -Seconds 20
-Write-host 'Add admin-consent' -ForegroundColor Green
+Write-host 'Grant admin-consent' -ForegroundColor Green
 az ad app permission admin-consent --id $backend_SPNappId
 
 # ]
@@ -176,7 +177,7 @@ az keyvault secret set --vault-name $backend_kv --name $backend_SPNPass_Name_kv_
 Start-Sleep -Seconds 5
 
 Write-Host "Adding SPN secret..." -ForegroundColor Yellow
-az keyvault secret set --vault-name $backend_kv --name $backend_SPNPass_Name_kv_sc --value $backend_SPNappId
+az keyvault secret set --vault-name $backend_kv --name $backend_SPNappId_Name_kv_sc --value $backend_SPNappId
 Start-Sleep -Seconds 5
 
 Write-Host "Creating SSH Key for Linux VM | AKS Nodes..." -ForegroundColor Yellow
@@ -246,7 +247,7 @@ Start-Sleep -Seconds 5
 # [
 
 Write-Host "Creating pipeline for tfazlab project..." -ForegroundColor Yellow
-az pipelines create --name $backend_PipeName --description $backend_PipeDesc --repository $backend_RepoGithub --detect false --branch main --repository-type github --service-connection $gh_endpoint
+az pipelines create --name $backend_PipeName --description $backend_PipeDesc --repository $gh_repo_url --detect false --branch main --repository-type github --service-connection $gh_endpoint
 
 Start-Sleep -Seconds 10
 
@@ -259,12 +260,12 @@ Start-Sleep -Seconds 10
 Write-Host "Allowing AZDO ACCESS..." -ForegroundColor Yellow
 # Grant Access to all Pipelines to the Newly Created DevOps Service Connection
 $backend_EndPid = az devops service-endpoint list --query "[?name=='$backend_AZDOSrvConnName'].id" -o tsv
-az devops service-endpoint update --detect false --id $backend_EndPid --enable-for-all true
+az devops service-endpoint update --detect false --id $backend_EndPid --org $backend_org --project $backend_project --enable-for-all true
 
 Write-Host "Allowing AZDO GH ACCESS..." -ForegroundColor Yellow
 # Grant Access to all Pipelines to the newly Created DevOps Service Connection
 $backend_gh_EndPid = az devops service-endpoint list --query "[?name=='$gh_endpoint'].id" -o tsv
-az devops service-endpoint update --detect false --id $backend_gh_EndPid --org $backend_org --project $backend_project
+az devops service-endpoint update --detect false --id $backend_gh_EndPid --org $backend_org --project $backend_project --enable-for-all true
 
 # ]
 
