@@ -205,9 +205,8 @@ az devops service-endpoint azurerm create --azure-rm-service-principal-id $backe
 
 Start-Sleep -Seconds 5
 
-
 Write-Host "Creating Azure DevOps service endpoint..." -ForegroundColor Yellow
-az devops service-endpoint github create --github-url $gh_repo_url --name YourServiceEndpoint --org $backend_org --project $backend_project --service-connection $gh_endpoint
+az devops service-endpoint github create --github-url $gh_repo_url --name YourServiceEndpoint --org $backend_org --project $backend_project
 
 # ]
 
@@ -232,12 +231,9 @@ Start-Sleep -Seconds 5
 # [
 
 Write-Host "Creating pipeline for tfazlab project..." -ForegroundColor Yellow
-az pipelines create --name $backend_PipeBuild_Name --description $backend_PipeDesc --detect false --repository $backend_RepoName --branch main --yml-path $backend_tfaz_build_yml --repository-type tfsgit --skip-first-run true
+az pipelines create --name $backend_PipeBuild_Name --description $backend_PipeDesc --repository $backend_RepoGithub --detect false --branch main --repository-type github --service-connection $gh_endpoint
 
 Start-Sleep -Seconds 10
-
-Write-Host "Create TF Destroy pipeline for tfazlab project" -ForegroundColor Yellow
-az pipelines create --name $backend_PipeDest_Name --description $backend_PipeDesc --detect false --repository $backend_RepoName --branch main --yml-path $backend_tfdest_yml --repository-type tfsgit --skip-first-run true
 
 # ]
 
@@ -251,6 +247,10 @@ Write-Host "Allowing AZDO ACCESS..." -ForegroundColor Yellow
 $backend_EndPid = az devops service-endpoint list --query "[?name=='$backend_AZDOSrvConnName'].id" -o tsv
 az devops service-endpoint update --detect false --id $backend_EndPid --enable-for-all true
 
+Write-Host "Allowing AZDO GH ACCESS..." -ForegroundColor Yellow
+# Grant Access to all Pipelines to the Newly Created DevOps Service Connection
+$backend_EndPid = az devops service-endpoint list --query "[?name=='$backend_AZDOSrvConnName'].id" -o tsv
+az devops service-endpoint update --detect false --id $backend_EndPid --org $backend_org --project $backend_project
 # ]
 
 Write-Host "Done!" -ForegroundColor Green
