@@ -44,12 +44,12 @@ $description = "backendVB"
 $backend_AZDOSrvConnName = 'azdo-aks-conn'
 
 # Repository variables
-$backend_RepoName = "tfazlab"
+#$backend_RepoName = "tfazlab"
 
 # Pipeline variables
-$backend_PipeName = "TFazInfraPipe"
+$backend_PipeName = "TFaz-AKS-Build-Pipe"
 $backend_PipeDesc = "Pipeline for tfazlab project"
-$backend_PipeBuild_Name = "TFaz-Aks-Pipe"
+#$backend_PipeBuild_Name = "TFaz-Aks-Pipe"
 #$backend_PipeDest_Name = "Tfaz-Destroy-Pipe"
 #$backend_tfdest_yml = "tfaz_destroy.yml"
 #$backend_tfaz_build_yml = "tfazbuild.yml"
@@ -179,9 +179,24 @@ Write-Host "Adding SPN secret..." -ForegroundColor Yellow
 az keyvault secret set --vault-name $backend_kv --name $backend_SPNPass_Name_kv_sc --value $backend_SPNappId
 Start-Sleep -Seconds 5
 
+Write-Host "Creating SSH Key for Linux VM | AKS Nodes..." -ForegroundColor Yellow
+$sshName = "LinxAKSssh"
+$sshFolderPath = "$env:USERPROFILE\.ssh"
+$sshKeyPath = "$sshFolderPath\id_rsa_terraform"
 
-az devops service-endpoint github create --github-url $gh_repo_url --name YourServiceEndpoint --org $backend_org --project $backend_project --service-connection $gh_endpoint
+# Create the .ssh folder if it doesn't exist
+if (-not (Test-Path $sshFolderPath)) {
+    mkdir $sshFolderPath
+}
 
+# Generate the SSH key with an empty passphrase
+ssh-keygen -f $sshKeyPath -P ""
+
+# Read the public key file
+$publicKey = Get-Content "$sshKeyPath.pub"
+
+Write-Host "Storing SSH Key in Key Vault..." -ForegroundColor Yellow
+az keyvault secret set --vault-name $backend_kv --name $sshName --value $publicKey > $null
 
 # ]
 
@@ -231,7 +246,7 @@ Start-Sleep -Seconds 5
 # [
 
 Write-Host "Creating pipeline for tfazlab project..." -ForegroundColor Yellow
-az pipelines create --name $backend_PipeBuild_Name --description $backend_PipeDesc --repository $backend_RepoGithub --detect false --branch main --repository-type github --service-connection $gh_endpoint
+az pipelines create --name $backend_PipeName --description $backend_PipeDesc --repository $backend_RepoGithub --detect false --branch main --repository-type github --service-connection $gh_endpoint
 
 Start-Sleep -Seconds 10
 
@@ -241,16 +256,16 @@ Start-Sleep -Seconds 10
 
 # [
 
-
 Write-Host "Allowing AZDO ACCESS..." -ForegroundColor Yellow
 # Grant Access to all Pipelines to the Newly Created DevOps Service Connection
 $backend_EndPid = az devops service-endpoint list --query "[?name=='$backend_AZDOSrvConnName'].id" -o tsv
 az devops service-endpoint update --detect false --id $backend_EndPid --enable-for-all true
 
 Write-Host "Allowing AZDO GH ACCESS..." -ForegroundColor Yellow
-# Grant Access to all Pipelines to the Newly Created DevOps Service Connection
-$backend_EndPid = az devops service-endpoint list --query "[?name=='$backend_AZDOSrvConnName'].id" -o tsv
-az devops service-endpoint update --detect false --id $backend_EndPid --org $backend_org --project $backend_project
+# Grant Access to all Pipelines to the newly Created DevOps Service Connection
+$backend_gh_EndPid = az devops service-endpoint list --query "[?name=='$gh_endpoint'].id" -o tsv
+az devops service-endpoint update --detect false --id $backend_gh_EndPid --org $backend_org --project $backend_project
+
 # ]
 
 Write-Host "Done!" -ForegroundColor Green
