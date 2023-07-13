@@ -32,14 +32,16 @@ $backend_SPNPass_Name_kv_sc = "SPNPass"
 
 # Set the Azure DevOps organization and project details
 $backend_org = "https://dev.azure.com/tfazlab"
-$backend_project = "tfazlab"
+$backend_project = "aks-tfaz-proj"
+$gh_repo_url = "https://github.com/HemSarz/AKS-TFAZ"
+$gh_endpoint = "tfaz-gh-endp"
 
 # Set the variable group details
-$backend_VBGroup = "hawaVB"
+$backend_VBGroup = "aksVB"
 $description = "backendVB"
 
 # Azure DevOps Connection variables
-$backend_AZDOSrvConnName = 'azdo-tfaz-conn'
+$backend_AZDOSrvConnName = 'azdo-aks-conn'
 
 # Repository variables
 $backend_RepoName = "tfazlab"
@@ -47,10 +49,10 @@ $backend_RepoName = "tfazlab"
 # Pipeline variables
 $backend_PipeName = "TFazInfraPipe"
 $backend_PipeDesc = "Pipeline for tfazlab project"
-$backend_PipeBuild_Name = "TFaz-Build-Pipe"
-$backend_PipeDest_Name = "Tfaz-Destroy-Pipe"
-$backend_tfdest_yml = "tfaz_destroy.yml"
-$backend_tfaz_build_yml = "tfazbuild.yml"
+$backend_PipeBuild_Name = "TFaz-Aks-Pipe"
+#$backend_PipeDest_Name = "Tfaz-Destroy-Pipe"
+#$backend_tfdest_yml = "tfaz_destroy.yml"
+#$backend_tfaz_build_yml = "tfazbuild.yml"
 
 # ]
 
@@ -173,6 +175,14 @@ Write-Host "Adding SPN secret..." -ForegroundColor Yellow
 az keyvault secret set --vault-name $backend_kv --name $backend_SPNPass_Name_kv_sc --value $backend_SPNPass
 Start-Sleep -Seconds 5
 
+Write-Host "Adding SPN secret..." -ForegroundColor Yellow
+az keyvault secret set --vault-name $backend_kv --name $backend_SPNPass_Name_kv_sc --value $backend_SPNappId
+Start-Sleep -Seconds 5
+
+
+az devops service-endpoint github create --github-url $gh_repo_url --name YourServiceEndpoint --org $backend_org --project $backend_project --service-connection $gh_endpoint
+
+
 # ]
 
 Start-Sleep -Seconds 5
@@ -192,6 +202,12 @@ Start-Sleep -Seconds 5
 Write-Host "Creating Azure DevOps service endpoint..." -ForegroundColor Yellow
 # Create DevOps Service Connection
 az devops service-endpoint azurerm create --azure-rm-service-principal-id $backend_SPNappId --azure-rm-subscription-id $backend_SUBid --azure-rm-subscription-name $backend_SUBName --azure-rm-tenant-id $backend_TNTid --name $backend_AZDOSrvConnName --org $backend_org --project $backend_project
+
+Start-Sleep -Seconds 5
+
+
+Write-Host "Creating Azure DevOps service endpoint..." -ForegroundColor Yellow
+az devops service-endpoint github create --github-url $gh_repo_url --name YourServiceEndpoint --org $backend_org --project $backend_project --service-connection $gh_endpoint
 
 # ]
 
