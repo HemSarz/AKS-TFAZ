@@ -221,7 +221,7 @@ az devops service-endpoint azurerm create --azure-rm-service-principal-id $backe
 Start-Sleep -Seconds 5
 
 Write-Host "Creating Azure DevOps service endpoint..." -ForegroundColor Yellow
-az devops service-endpoint github create --github-url $gh_repo_url --name YourServiceEndpoint --org $backend_org --project $backend_project
+az devops service-endpoint github create --github-url $gh_repo_url --name $gh_endpoint --org $backend_org --project $backend_project
 
 # ]
 
