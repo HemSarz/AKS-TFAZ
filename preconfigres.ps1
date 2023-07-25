@@ -34,8 +34,9 @@ $backend_SPNappId_Name_kv_sc = "SPNappId"
 # Set the Azure DevOps organization and project details
 $backend_org = "https://dev.azure.com/tfazlab"
 $backend_project = "aks-tfaz-proj"
-$gh_repo_url = "https://github.com/HemSarz/AKS-TFAZ"
+$gh_repo_url = "HemSarz/AKS-TFAZ"
 $gh_endpoint = "tfaz-gh-endp"
+$gh_yml_path = "azure-pipelines.yml"
 
 # Set the variable group details
 $backend_VBGroup = "aksVB"
@@ -81,7 +82,28 @@ $env:AZURE_DEVOPS_EXT_AZURE_RM_SERVICE_PRINCIPAL_KEY=$backend_SPNPass
 Start-Sleep -Seconds 5
 
 Write-Host "Creating resource group..." -ForegroundColor Yellow
+# Create the resource group
 az group create --name $backend_rg --location $backend_location
+
+# Wait until the resource group is deleted
+do {
+    $rgStatus = (az group show --name $backend_rg --query "properties.provisioningState" --output tsv)
+    if ($rgStatus -eq "ResourceGroupBeingDeleted") {
+        Write-Host "Resource group '$backend_rg' is still being deleted. Waiting..."
+        Start-Sleep -Seconds 10  # Adjust the sleep duration as needed
+    } elseif ($rgStatus -eq "Succeeded") {
+        Write-Host "Resource group '$backend_rg' has been successfully deleted."
+        break
+    } else {
+        Write-Host "Failed to delete resource group '$backend_rg'. Status: $rgStatus"
+        exit 1
+    }
+} until ($false)
+
+# Continue with the next steps after the resource is deleted
+Write-Host "Continue with the next steps..."
+
+Start-Sleep 2
 
 Write-Host "Creating storage account..." -ForegroundColor Yellow
 az storage account create --resource-group $backend_rg --name $backend_stg --sku $backend_stg_sku --encryption-services blob
@@ -190,8 +212,8 @@ if (-not (Test-Path $sshFolderPath)) {
     mkdir $sshFolderPath
 }
 
-# Generate the public key file in the correct format
-ssh-keygen -y -f $sshKeyPath > "$sshKeyPath.pub"
+# Generate the SSH key with an empty passphrase
+ssh-keygen -f $sshKeyPath -P ""
 
 # Read the public key file
 $publicKey = Get-Content "$sshKeyPath.pub"
@@ -219,9 +241,10 @@ Write-Host "Creating Azure DevOps service endpoint..." -ForegroundColor Yellow
 # Create DevOps Service Connection
 az devops service-endpoint azurerm create --azure-rm-service-principal-id $backend_SPNappId --azure-rm-subscription-id $backend_SUBid --azure-rm-subscription-name $backend_SUBName --azure-rm-tenant-id $backend_TNTid --name $backend_AZDOSrvConnName --org $backend_org --project $backend_project
 
+Write-host "Azure DevOps Service Endpoint Created..."
 Start-Sleep -Seconds 5
 
-Write-Host "Creating Azure DevOps service endpoint..." -ForegroundColor Yellow
+Write-Host "Creating Github service endpoint..." -ForegroundColor Yellow
 az devops service-endpoint github create --github-url $gh_repo_url --name $gh_endpoint --org $backend_org --project $backend_project
 
 # ]
@@ -246,8 +269,10 @@ Start-Sleep -Seconds 5
 
 # [
 
+$gh_EndpId = az devops service-endpoint list --query "[?name=='$gh_endpoint'].id" -o tsv
+
 Write-Host "Creating pipeline for tfazlab project..." -ForegroundColor Yellow
-az pipelines create --name $backend_PipeName --description $backend_PipeDesc --repository $gh_repo_url --detect false --branch main --repository-type github --service-connection $gh_endpoint
+az pipelines create --name $backend_PipeName --description $backend_PipeDesc --repository $gh_repo_url --detect false --branch main --yml-path $gh_yml_path --repository-type github --service-connection $gh_EndpId
 
 Start-Sleep -Seconds 10
 
@@ -264,8 +289,7 @@ az devops service-endpoint update --detect false --id $backend_EndPid --org $bac
 
 Write-Host "Allowing AZDO GH ACCESS..." -ForegroundColor Yellow
 # Grant Access to all Pipelines to the newly Created DevOps Service Connection
-$backend_gh_EndPid = az devops service-endpoint list --query "[?name=='$gh_endpoint'].id" -o tsv
-az devops service-endpoint update --detect false --id $backend_gh_EndPid --org $backend_org --project $backend_project --enable-for-all true
+az devops service-endpoint update --detect false --id $gh_EndpId --org $backend_org --project $backend_project --enable-for-all true
 
 # ]
 

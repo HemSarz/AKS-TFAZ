@@ -1,0 +1,138 @@
+# Trigger configuration
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - variables.tf
+      - infra.tf
+
+# Pool configuration
+pool:
+  vmImage: ubuntu-latest
+
+  # Variables definition
+  variables:
+    - group: hawaVB
+      workingDir: $(System.DefaultWorkingDirectory)
+      artifactName: TfazPubArtifact
+      ASDir: $(build.artifactstagingdirectory)
+
+  # Parameters definition
+  parameters:
+    - name: envName
+      displayName: Select Environment
+      description: "Choose the environment for deployment."
+      default: NonProd
+      values:
+        - NonProd
+
+    - name: actionToPerform
+      displayName: Deploy or Destroy
+      description: "Specify whether to deploy or destroy the infrastructure."
+      default: Deploy
+      values:
+        - Deploy
+
+############################################## Configuration: Publish stage ##############################################
+
+stages:
+  - stage: Publish Plan
+    jobs:
+      - job: Publish
+        displayName: "Publish"
+        steps:
+          - task: TerraformInstaller@0
+            displayName: "Install Terraform | Latest Version"
+            inputs:
+              terraformVersion: "latest"
+
+          - task: TerraformCLI@0
+            displayName: "Terraform init"
+            inputs:
+              command: "init"
+              backendType: "azurerm"
+              workingDirectory: "$(workingDir)"
+              backendServiceArm: "azdo-tfaz-conn"
+              backendAzureRmResourceGroupName: "$(RGName)"
+              backendAzureRmStorageAccountName: "$(STGName)"
+              backendAzureRmContainerName: "$(ContName)"
+              backendAzureRmKey: "$(TFStatefileName)"
+
+          - task: TerraformCLI@0
+            displayName: "Terraform Validate"
+            inputs:
+              backendType: "azurerm"
+              command: "validate"
+
+          - task: TerraformCLI@0
+            displayName: "Terraform Plan"
+            inputs:
+              backendType: "azurerm"
+              workingDirectory: "$(workingDir)"
+              command: "plan"
+              commandOptions: "--out=TfazBuildPlan"
+              environmentServiceName: "azdo-tfaz-conn"
+              publishPlanResults: "TfazBuildPlan"
+
+              ############################################## Configuration: Build Stage ##############################################
+
+  - stage: Build Artifact Plan
+    jobs:
+      - job: Build
+        displayName: "Build"
+        steps:
+          - task: TerraformInstaller@0
+            displayName: "Install Terraform | Latest Version"
+            inputs:
+              terraformVersion: "latest"
+
+          - task: TerraformCLI@0
+            displayName: "Terraform Init"
+            inputs:
+              command: "init"
+              backendType: "azurerm"
+              workingDirectory: "$(workingDir)"
+              backendServiceArm: "azdo-tfaz-conn"
+              backendAzureRmResourceGroupName: "$(RGName)"
+              backendAzureRmStorageAccountName: "$(STGName)"
+              backendAzureRmContainerName: "$(ContName)"
+              backendAzureRmKey: "$(TFStatefileName)"
+
+          - task: TerraformCLI@0
+            displayName: "Terraform Validate"
+            inputs:
+              backendType: "azurerm"
+              command: "validate"
+
+          - task: TerraformCLI@0
+            displayName: "Terraform Plan"
+            inputs:
+              backendType: "azurerm"
+              workingDirectory: "$(workingDir)"
+              command: "plan"
+              commandOptions: "--out=TfazBuildPlan"
+              environmentServiceName: "azdo-tfaz-conn"
+
+          # Create folder for the ASD
+          - task: Powershell@2
+            displayName: Create folder for the ASD
+            inputs:
+              targetType: "Inline"
+              script: |
+                $tfazPlanFolderPath = New-Item -Path $(ASDir)/TfazPlan -ItemType Directory
+                Write-Host "##vso[task.setvariable variable=tfazPlanFolderPath]$tfazPlanFolderPath"
+
+          # Copy Files to Artifacts Staging Directory:-
+          - task: CopyFiles@2
+            displayName: "Copy files to Artifact staging Directory"
+            inputs:
+              SourceFolder: "$workingDir)"
+              Contents: |
+                **/*.tf
+                **/*.tfvars
+                **/*.TfazBuildPlan
+              TargetFolder: "$ASdDir)/$(tfazPlanFolderPath)"
+
+          #
